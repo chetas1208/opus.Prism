@@ -1,0 +1,18 @@
+node_modules/
+.next/
+.venv/
+__pycache__/
+*.pyc
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# OS files
+.DS_Store
+
+# Temporary jobs and generated content
+backend/jobs/
+backend/projects/
+backend/sample/temp/

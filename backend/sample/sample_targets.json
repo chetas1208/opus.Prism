@@ -1,0 +1,41 @@
+[
+    {
+        "id": "tiktok_casual_15",
+        "audience": "Gen Z casual viewer",
+        "platform": "TikTok",
+        "duration_sec": 15,
+        "tone": [
+            "energetic",
+            "playful",
+            "simple"
+        ],
+        "goal": "hook + intrigue",
+        "visual_style": "bold captions, quick cuts, meme energy"
+    },
+    {
+        "id": "engineer_explainer_45",
+        "audience": "software engineer / tech enthusiast",
+        "platform": "YouTube Shorts",
+        "duration_sec": 45,
+        "tone": [
+            "clear",
+            "precise",
+            "no fluff"
+        ],
+        "goal": "understand the tech",
+        "visual_style": "diagram overlays, labeled components, dark UI"
+    },
+    {
+        "id": "buyer_linkedin_30",
+        "audience": "enterprise buyer / CTO",
+        "platform": "LinkedIn",
+        "duration_sec": 30,
+        "tone": [
+            "confident",
+            "trustworthy",
+            "benefit-led"
+        ],
+        "goal": "conversion + credibility",
+        "visual_style": "clean product shots, stat callouts, professional"
+    }
+]
