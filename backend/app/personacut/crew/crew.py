@@ -7,11 +7,11 @@ def run_crewai_pipeline(source_script: str, targets: list, style_guide: str = No
     Runs a CrewAI process to generate video variants for targets.
     Returns (story_facts, strategies, variants, scorecards)
     """
-    os.environ["OPENAI_API_BASE"] = os.getenv("LLM_VARIANT_BASE_URL", "http://localhost:8001/v1")
-    os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_COMPAT_API_KEY", "dummy")
+    os.environ["OPENAI_API_BASE"] = os.getenv("LLM_VARIANT_BASE_URL", "https://router.huggingface.co/hf-inference/v1")
+    os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_COMPAT_API_KEY", "sk-mock-key")
     
     config_kwargs = {}
-    config_kwargs["llm"] = f"openai/{os.getenv('LLM_VARIANT_MODEL_ID', 'Qwen/Qwen2.5-14B-Instruct')}"
+    config_kwargs["llm"] = f"openai/{os.getenv('LLM_VARIANT_MODEL_ID', 'Qwen/Qwen2.5-72B-Instruct')}"
     
     # AGENT A: StoryFactsExtractor
     extractor = Agent(

@@ -4,13 +4,15 @@ import Image from "next/image";
 import "./globals.css";
 import { ChatWidget } from "@/components/ChatWidget";
 import SpaceBackgroundV3 from "@/components/SpaceBackgroundV3";
+import NavBrand from "@/components/NavBrand";
+import { Github } from "lucide-react";
 
 const inter = Inter({ variable: "--font-inter", subsets: ["latin"], display: "swap" });
 const jetbrains = JetBrains_Mono({ variable: "--font-jetbrains", subsets: ["latin"], display: "swap" });
 
 export const metadata: Metadata = {
-  title: "PersonaCut — Agentic Video Personalization",
-  description: "A compiler from story → audience-specific video plans. Multimodal, agentic, instant.",
+  title: "Opus.Prism — Agentic Video Personalization",
+  description: "PersonaCut · OPBot · TextGuard QA — One script, multiple audiences, instantly tailored video plans.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -22,12 +24,22 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <a href="/" className="flex items-center gap-3 group">
               <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center border border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.5)]">
-                <Image src="/logo_3d.png" alt="PersonaCut Logo" width={400} height={400} className="w-full h-full object-cover scale-[1.1]" />
+                <Image src="/logo_3d.png" alt="Opus.Prism Logo" width={400} height={400} className="w-full h-full object-cover scale-[1.1]" />
               </div>
-              <span className="text-lg font-bold bg-gradient-to-r from-blue-400 via-cyan-400 to-purple-500 bg-clip-text text-transparent tracking-tight">PersonaCut</span>
+              <NavBrand />
             </a>
-            <div className="flex items-center gap-4 text-sm text-muted">
+            <div className="flex items-center gap-6 text-sm text-muted">
               <span className="hidden sm:inline font-mono text-xs text-accent-cyan/60">v1.0</span>
+              <a
+                href="https://github.com/chetas1208/opus.Prism"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 text-foreground/80 hover:text-white transition-colors"
+                title="View on GitHub"
+              >
+                <Github className="w-5 h-5 animate-pulse text-accent-cyan" />
+                <span className="font-mono text-xs hidden sm:inline-block">GitHub</span>
+              </a>
             </div>
           </div>
         </nav>

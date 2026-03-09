@@ -80,30 +80,5 @@ export const getOriginalVideoUrl = (projectId: string, variantId: string) =>
 export const getPatchedVideoUrl = (projectId: string, variantId: string) =>
     `${API}/api/projects/${projectId}/qa/${variantId}/patched`;
 
-// ── Wan2.1 Video Generation ──
-
-export const getVideoGenStatus = async (projectId: string) => {
-    const res = await fetch(`${API}/api/projects/${projectId}/videogen/status`);
-    if (!res.ok) return { enabled: false, generated_variants: [] };
-    return res.json() as Promise<{ enabled: boolean; generated_variants: string[] }>;
-};
-
-export const triggerVideoGen = async (
-    projectId: string,
-    variantId: string,
-    mode: "full_variant" | "first_scene_only" = "full_variant"
-) => {
-    const res = await fetch(`${API}/api/projects/${projectId}/videogen`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ variant_id: variantId, mode }),
-    });
-    if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.detail || "Failed to start video generation");
-    }
-    return res.json() as Promise<{ job_id: string; variant_id: string; mode: string }>;
-};
-
-export const getGeneratedVideoUrl = (projectId: string, variantId: string) =>
-    `${API}/api/projects/${projectId}/videogen/${variantId}/video`;
+export const getQAFrameUrl = (projectId: string, variantId: string, frameName: string) =>
+    `${API}/api/projects/${projectId}/qa/${variantId}/frames/${frameName}`;

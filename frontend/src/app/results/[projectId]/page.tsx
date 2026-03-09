@@ -2,10 +2,11 @@
 
 import { useEffect, useState, useCallback, use } from "react";
 import { useSearchParams } from "next/navigation";
-import { getJobStatus, getProjectResults, getVideoGenStatus, triggerVideoGen, getGeneratedVideoUrl } from "@/lib/api";
+import { getJobStatus, getProjectResults } from "@/lib/api";
+import { buildDetailedPrompt, copyToClipboard } from "@/lib/prompt";
 import {
     Loader2, XCircle, ArrowLeft, Download, CheckCircle,
-    AlertTriangle, Users, Tv, Zap, BarChart3, Shield, Film, Play
+    AlertTriangle, Users, Tv, Zap, BarChart3, Shield, ClipboardCopy, Check
 } from "lucide-react";
 
 export default function ResultsPage({ params }: { params: Promise<{ projectId: string }> }) {
@@ -17,13 +18,19 @@ export default function ResultsPage({ params }: { params: Promise<{ projectId: s
     const [results, setResults] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState(0);
+    const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
 
-    // Video generation state
-    const [vgEnabled, setVgEnabled] = useState(false);
-    const [vgGenerated, setVgGenerated] = useState<string[]>([]);
-    const [vgJobId, setVgJobId] = useState<string | null>(null);
-    const [vgStatus, setVgStatus] = useState<any>(null);
-    const [vgError, setVgError] = useState<string | null>(null);
+    const handleCopyPrompt = useCallback(async () => {
+        if (!results?.variants?.[activeTab]) return;
+        const prompt = buildDetailedPrompt({
+            projectName: results?.story_facts?.product_name,
+            storyFacts: results?.story_facts,
+            variantPack: results.variants[activeTab],
+        });
+        const ok = await copyToClipboard(prompt);
+        setCopyState(ok ? "copied" : "failed");
+        setTimeout(() => setCopyState("idle"), 1500);
+    }, [results, activeTab]);
 
     useEffect(() => {
         if (!jobId) return;
@@ -38,12 +45,6 @@ export default function ResultsPage({ params }: { params: Promise<{ projectId: s
                     if (data.status === "done") {
                         const res = await getProjectResults(projectId);
                         setResults(res);
-                        // Check videogen availability
-                        try {
-                            const vgs = await getVideoGenStatus(projectId);
-                            setVgEnabled(vgs.enabled);
-                            setVgGenerated(vgs.generated_variants);
-                        } catch { /* videogen not available */ }
                     }
                     setLoading(false);
                 }
@@ -54,41 +55,6 @@ export default function ResultsPage({ params }: { params: Promise<{ projectId: s
         interval = setInterval(poll, 2000);
         return () => clearInterval(interval);
     }, [jobId, projectId]);
-
-    // Poll videogen job status
-    useEffect(() => {
-        if (!vgJobId) return;
-        let interval: NodeJS.Timeout;
-        const poll = async () => {
-            try {
-                const data = await getJobStatus(vgJobId);
-                setVgStatus(data);
-                if (data.status === "done" || data.status === "error") {
-                    clearInterval(interval);
-                    if (data.status === "done") {
-                        const vgs = await getVideoGenStatus(projectId);
-                        setVgGenerated(vgs.generated_variants);
-                    }
-                    if (data.status === "error") setVgError(data.message);
-                    setVgJobId(null);
-                }
-            } catch { /* ignore */ }
-        };
-        poll();
-        interval = setInterval(poll, 3000);
-        return () => clearInterval(interval);
-    }, [vgJobId, projectId]);
-
-    const handleGenerateVideo = useCallback(async (variantId: string) => {
-        setVgError(null);
-        setVgStatus(null);
-        try {
-            const resp = await triggerVideoGen(projectId, variantId);
-            setVgJobId(resp.job_id);
-        } catch (err: any) {
-            setVgError(err.message || "Video generation failed");
-        }
-    }, [projectId]);
 
     // ── Loading ──
     if (loading || (status?.status !== "done" && status?.status !== "error")) {
@@ -306,65 +272,7 @@ export default function ResultsPage({ params }: { params: Promise<{ projectId: s
                                 </div>
                             )}
 
-                            {/* Wan2.1 Video Generation */}
-                            {vgEnabled && (
-                                <div className="glass-card rounded-xl p-5 space-y-3">
-                                    <h3 className="text-xs font-mono text-accent-purple uppercase tracking-widest flex items-center gap-2">
-                                        <Film className="w-3.5 h-3.5" /> Wan2.1 Video
-                                    </h3>
-
-                                    {vgGenerated.includes(v.variant_id) ? (
-                                        <div className="space-y-3">
-                                            <video
-                                                src={getGeneratedVideoUrl(projectId, v.variant_id)}
-                                                controls
-                                                className="w-full rounded-lg border border-border/50"
-                                                preload="metadata"
-                                            />
-                                            <div className="flex gap-2">
-                                                <a
-                                                    href={getGeneratedVideoUrl(projectId, v.variant_id)}
-                                                    download={`generated_${v.variant_id}.mp4`}
-                                                    className="flex-1 py-2 px-3 rounded-lg border border-accent-cyan/30 text-accent-cyan hover:bg-accent-cyan/10 transition-all text-xs font-medium flex items-center justify-center gap-1.5"
-                                                >
-                                                    <Download className="w-3 h-3" /> Download
-                                                </a>
-                                                <button
-                                                    onClick={() => handleGenerateVideo(v.variant_id)}
-                                                    disabled={!!vgJobId}
-                                                    className="flex-1 py-2 px-3 rounded-lg border border-border text-muted hover:text-foreground hover:border-accent-purple/30 transition-all text-xs font-medium flex items-center justify-center gap-1.5 disabled:opacity-50"
-                                                >
-                                                    Regenerate
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ) : vgJobId && vgStatus?.status === "running" ? (
-                                        <div className="space-y-2">
-                                            <div className="flex items-center gap-2 text-xs text-accent-purple">
-                                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                                <span>{vgStatus.message || "Generating..."}</span>
-                                            </div>
-                                            <div className="w-full bg-background/50 rounded-full h-1.5 overflow-hidden">
-                                                <div className="h-full rounded-full bg-accent-purple transition-all" style={{ width: `${vgStatus.progress || 10}%` }} />
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-2">
-                                            <p className="text-[10px] text-muted">Generate a T2V preview from this variant&apos;s visual prompts using Wan2.1.</p>
-                                            {vgError && <p className="text-[10px] text-danger">{vgError}</p>}
-                                            <button
-                                                onClick={() => handleGenerateVideo(v.variant_id)}
-                                                disabled={!!vgJobId}
-                                                className="w-full py-2.5 px-4 rounded-lg bg-accent-purple/10 border border-accent-purple/30 text-accent-purple hover:bg-accent-purple/20 transition-all text-xs font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
-                                            >
-                                                <Play className="w-3.5 h-3.5" /> Generate Video (Wan2.1)
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
-                            {/* Export + QA */}
+                            {/* Export + Copy + QA */}
                             <button onClick={() => {
                                 const blob = new Blob([JSON.stringify(v, null, 2)], { type: "application/json" });
                                 const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
@@ -372,6 +280,21 @@ export default function ResultsPage({ params }: { params: Promise<{ projectId: s
                             }}
                                 className="w-full py-3 px-4 rounded-xl border border-accent-blue/30 text-accent-blue hover:bg-accent-blue/10 transition-all text-sm font-medium flex items-center justify-center gap-2">
                                 <Download className="w-4 h-4" /> Export JSON
+                            </button>
+
+                            <button onClick={handleCopyPrompt}
+                                className={`w-full py-3 px-4 rounded-xl border transition-all text-sm font-medium flex items-center justify-center gap-2 ${
+                                    copyState === "copied"
+                                        ? "border-success/50 text-success bg-success/10"
+                                        : copyState === "failed"
+                                        ? "border-danger/50 text-danger bg-danger/10"
+                                        : "border-accent-purple/30 text-accent-purple hover:bg-accent-purple/10"
+                                }`}>
+                                {copyState === "copied"
+                                    ? <><Check className="w-4 h-4" /> Copied!</>
+                                    : copyState === "failed"
+                                    ? <><XCircle className="w-4 h-4" /> Copy Failed</>
+                                    : <><ClipboardCopy className="w-4 h-4" /> Copy Detailed Prompt</>}
                             </button>
 
                             <a href={`/qa/${projectId}/${v.variant_id}`}

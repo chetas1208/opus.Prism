@@ -13,12 +13,6 @@ easyocr
 opencv-python<4.11
 torch>=2.2,<2.3
 
-# Wan2.1 Video Generation (optional — install only if ENABLE_VIDEO_GEN=true)
-diffusers>=0.31.0
-accelerate
-safetensors
-imageio[ffmpeg]
-
 # Optional
 crewai
 huggingface_hub

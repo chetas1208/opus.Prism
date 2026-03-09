@@ -1,4 +1,8 @@
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
 import json
 import uuid
 
@@ -6,7 +10,6 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException, BackgroundTa
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from typing import Optional, Tuple
-from dotenv import load_dotenv
 
 from .schemas import (
     ProjectCreateRequest, ProjectResponse, JobResponse,
@@ -14,10 +17,7 @@ from .schemas import (
 )
 from .personacut.agents import run_pipeline
 from .textguard.orchestrator import run_textguard
-from .videogen.orchestrator import run_videogen_job, get_generated_video_path
 import httpx
-
-load_dotenv()
 
 app = FastAPI(title="PersonaCut + TextGuard API", version="2.0.0")
 
@@ -41,11 +41,9 @@ def _create_job(project_id: Optional[str] = None) -> Tuple[str, str]:
     job_path = os.path.join(JOBS_DIR, job_id)
     os.makedirs(job_path, exist_ok=True)
 
-    # Write initial status
     with open(os.path.join(job_path, "status.json"), "w") as f:
         json.dump({"status": "queued", "progress": 0, "message": "Job created"}, f)
 
-    # Link job to project if applicable
     if project_id:
         with open(os.path.join(job_path, "project_id.txt"), "w") as f:
             f.write(project_id)
@@ -63,14 +61,11 @@ async def create_project(req: ProjectCreateRequest, background_tasks: Background
     project_path = os.path.join(PROJECTS_DIR, project_id)
     os.makedirs(project_path, exist_ok=True)
 
-    # Save input
     with open(os.path.join(project_path, "input.json"), "w") as f:
         json.dump(req.model_dump(), f, indent=2)
 
-    # Create a job for PersonaCut pipeline
     job_id, job_path = _create_job(project_id)
 
-    # Save project<->job mapping
     with open(os.path.join(project_path, "personacut_job_id.txt"), "w") as f:
         f.write(job_id)
 
@@ -88,7 +83,6 @@ async def get_project_results(project_id: str):
     if not os.path.exists(project_path):
         raise HTTPException(status_code=404, detail="Project not found")
 
-    # Find the job results
     job_id_path = os.path.join(project_path, "personacut_job_id.txt")
     if not os.path.exists(job_id_path):
         raise HTTPException(status_code=404, detail="No PersonaCut job found")
@@ -112,43 +106,24 @@ async def get_project_results(project_id: str):
 async def run_qa(
     project_id: str,
     background_tasks: BackgroundTasks,
-    video: Optional[UploadFile] = File(None),
+    video: UploadFile = File(...),
     variant_id: str = Form(""),
     fps: int = Form(1),
     patch: bool = Form(True),
     expected_text_source: str = Form("captions"),
     expected_text_json: Optional[str] = Form(None),
-    use_generated_video: bool = Form(False),
 ):
     project_path = os.path.join(PROJECTS_DIR, project_id)
     if not os.path.exists(project_path):
         raise HTTPException(status_code=404, detail="Project not found")
 
-    # Create QA job
     job_id, job_path = _create_job(project_id)
     os.makedirs(os.path.join(job_path, "frames"), exist_ok=True)
 
-    # Resolve video source
-    if use_generated_video:
-        gen_path = get_generated_video_path(project_id, variant_id)
-        if not gen_path:
-            raise HTTPException(
-                status_code=404,
-                detail=f"No generated video found for variant '{variant_id}'. "
-                       "Generate one first via POST /api/projects/{project_id}/videogen."
-            )
-        video_path = gen_path
-    elif video is not None:
-        video_path = os.path.join(job_path, "input.mp4")
-        with open(video_path, "wb") as f:
-            f.write(await video.read())
-    else:
-        raise HTTPException(
-            status_code=400,
-            detail="Either upload a video file or set use_generated_video=true."
-        )
+    video_path = os.path.join(job_path, "input.mp4")
+    with open(video_path, "wb") as f:
+        f.write(await video.read())
 
-    # Build expected text data
     if expected_text_source == "custom" and expected_text_json:
         expected_data = json.loads(expected_text_json)
     else:
@@ -157,7 +132,6 @@ async def run_qa(
     with open(os.path.join(job_path, "expected.json"), "w") as f:
         json.dump(expected_data, f, indent=2)
 
-    # Save QA job mapping in project
     qa_dir = os.path.join(project_path, "qa", variant_id)
     os.makedirs(qa_dir, exist_ok=True)
     with open(os.path.join(qa_dir, "job_id.txt"), "w") as f:
@@ -252,106 +226,21 @@ async def get_original_qa_video(project_id: str, variant_id: str):
     return FileResponse(video_path, media_type="video/mp4", filename=f"original_{variant_id}.mp4")
 
 
-# ══════════════════════════════════════════════
-# Wan2.1 Video Generation (Optional)
-# ══════════════════════════════════════════════
-
-@app.post("/api/projects/{project_id}/videogen")
-async def trigger_videogen(project_id: str, background_tasks: BackgroundTasks, body: dict):
-    """Trigger Wan2.1 T2V generation for a specific variant."""
-    if os.getenv("ENABLE_VIDEO_GEN", "false").lower() != "true":
-        raise HTTPException(
-            status_code=400,
-            detail="Video generation is disabled. Set ENABLE_VIDEO_GEN=true in .env."
-        )
-
-    project_path = os.path.join(PROJECTS_DIR, project_id)
-    if not os.path.exists(project_path):
-        raise HTTPException(status_code=404, detail="Project not found")
-
-    variant_id = body.get("variant_id", "")
-    mode = body.get("mode", "full_variant")
-    if mode not in ("full_variant", "first_scene_only"):
-        raise HTTPException(status_code=400, detail="mode must be 'full_variant' or 'first_scene_only'")
-
-    # Load variant pack from results
-    job_id_path = os.path.join(project_path, "personacut_job_id.txt")
+@app.get("/api/projects/{project_id}/qa/{variant_id}/frames/{frame_name}")
+async def get_qa_frame(project_id: str, variant_id: str, frame_name: str):
+    qa_dir = os.path.join(PROJECTS_DIR, project_id, "qa", variant_id)
+    job_id_path = os.path.join(qa_dir, "job_id.txt")
     if not os.path.exists(job_id_path):
-        raise HTTPException(status_code=404, detail="No PersonaCut results found")
+        raise HTTPException(status_code=404, detail="QA job not found")
 
     with open(job_id_path) as f:
-        pc_job_id = f.read().strip()
+        job_id = f.read().strip()
 
-    results_path = os.path.join(JOBS_DIR, pc_job_id, "results.json")
-    if not os.path.exists(results_path):
-        raise HTTPException(status_code=404, detail="PersonaCut results not ready")
+    frame_path = os.path.join(JOBS_DIR, job_id, "frames", frame_name)
+    if not os.path.exists(frame_path):
+        raise HTTPException(status_code=404, detail="Frame not found")
 
-    with open(results_path) as f:
-        results = json.load(f)
-
-    variant_pack = None
-    for v in results.get("variants", []):
-        if v.get("variant_id") == variant_id:
-            variant_pack = v
-            break
-
-    if not variant_pack:
-        available = [v.get("variant_id") for v in results.get("variants", [])]
-        raise HTTPException(
-            status_code=404,
-            detail=f"Variant '{variant_id}' not found. Available: {available}"
-        )
-
-    # Create videogen job
-    vg_job_id, vg_job_path = _create_job(project_id)
-
-    # Save mapping
-    vg_dir = os.path.join(project_path, "videogen", variant_id)
-    os.makedirs(vg_dir, exist_ok=True)
-    with open(os.path.join(vg_dir, "job_id.txt"), "w") as f:
-        f.write(vg_job_id)
-
-    background_tasks.add_task(
-        run_videogen_job, vg_job_id, vg_job_path, project_id, variant_id, variant_pack, mode
-    )
-
-    return {"job_id": vg_job_id, "variant_id": variant_id, "mode": mode}
-
-
-@app.get("/api/projects/{project_id}/videogen/{variant_id}/video")
-async def get_generated_video(project_id: str, variant_id: str):
-    """Download the Wan2.1-generated video for a variant."""
-    vid_path = get_generated_video_path(project_id, variant_id)
-    if not vid_path:
-        raise HTTPException(status_code=404, detail="Generated video not found")
-    return FileResponse(vid_path, media_type="video/mp4", filename=f"generated_{variant_id}.mp4")
-
-
-@app.get("/api/projects/{project_id}/videogen/{variant_id}/metadata")
-async def get_videogen_metadata(project_id: str, variant_id: str):
-    """Return generation metadata (prompt, timings, params)."""
-    meta_path = os.path.join(PROJECTS_DIR, project_id, "videogen", variant_id, "metadata.json")
-    if not os.path.exists(meta_path):
-        raise HTTPException(status_code=404, detail="No generation metadata found")
-    with open(meta_path) as f:
-        return json.load(f)
-
-
-@app.get("/api/projects/{project_id}/videogen/status")
-async def get_videogen_status(project_id: str):
-    """Check if video generation is available and what variants have generated videos."""
-    enabled = os.getenv("ENABLE_VIDEO_GEN", "false").lower() == "true"
-    project_path = os.path.join(PROJECTS_DIR, project_id)
-
-    generated = []
-    vg_dir = os.path.join(project_path, "videogen")
-    if os.path.exists(vg_dir):
-        for vid in os.listdir(vg_dir):
-            mp4 = os.path.join(vg_dir, vid, "generated.mp4")
-            if os.path.isdir(os.path.join(vg_dir, vid)) and os.path.exists(mp4):
-                generated.append(vid)
-
-    return {"enabled": enabled, "generated_variants": generated}
+    return FileResponse(frame_path, media_type="image/jpeg", filename=frame_name)
 
 
 # ══════════════════════════════════════════════
@@ -390,7 +279,6 @@ Respond in STRICT JSON matching the schema. Do not include markdown code fences 
         
     except Exception as e:
         print(f"[Chat Proxy] Error: {e}")
-        # Fallback simple response
         return ChatResponse(
             message=f"Oops, I hit a snag trying to process that. ({str(e)}). Could you try again?",
             quick_actions=[],
@@ -407,7 +295,6 @@ async def tts_proxy(text: str = Form(...)):
     if not elevenlabs_key:
         raise HTTPException(status_code=500, detail="ElevenLabs API key not configured")
         
-    # Using the default "Rachel" voice ID as a safe fallback
     voice_id = "21m00Tcm4TlvDq8ikWAM" 
     url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}/stream"
     
@@ -427,7 +314,6 @@ async def tts_proxy(text: str = Form(...)):
     }
     
     try:
-        # Use httpx to proxy the streaming audio response
         client = httpx.AsyncClient()
         req = client.build_request("POST", url, headers=headers, json=data)
         r = await client.send(req, stream=True)
@@ -447,4 +333,3 @@ async def tts_proxy(text: str = Form(...)):
     except Exception as e:
         print(f"[TTS Proxy] Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-

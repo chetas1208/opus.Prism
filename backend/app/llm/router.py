@@ -11,20 +11,20 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------
 def get_variant_config():
     return {
-        "base_url": os.getenv("LLM_VARIANT_BASE_URL", "http://localhost:8001/v1"),
-        "model_id": os.getenv("LLM_VARIANT_MODEL_ID", "Qwen/Qwen2.5-14B-Instruct")
+        "base_url": os.getenv("LLM_VARIANT_BASE_URL", "https://router.huggingface.co/v1"),
+        "model_id": os.getenv("LLM_VARIANT_MODEL_ID", "Qwen/Qwen2.5-72B-Instruct")
     }
 
 def get_chat_config():
     return {
-        "base_url": os.getenv("LLM_CHAT_BASE_URL", "http://localhost:8002/v1"),
+        "base_url": os.getenv("LLM_CHAT_BASE_URL", "https://router.huggingface.co/v1"),
         "model_id": os.getenv("LLM_CHAT_MODEL_ID", "Qwen/Qwen2.5-7B-Instruct")
     }
 
 def get_qa_config():
     return {
-        "base_url": os.getenv("VLM_QA_BASE_URL", "http://localhost:23333/v1"),
-        "model_id": os.getenv("VLM_QA_MODEL_ID", "OpenGVLab/InternVL2-8B")
+        "base_url": os.getenv("VLM_QA_BASE_URL", "https://router.huggingface.co/v1"),
+        "model_id": os.getenv("VLM_QA_MODEL_ID", "Qwen/Qwen2.5-VL-7B-Instruct")
     }
 
 def get_temperature():
@@ -93,9 +93,8 @@ async def chat_answer(user_prompt: str) -> str:
 # Route 3: QA Verdict (Vision Language Model, InternVL2 8B)
 # ---------------------------------------------------------
 async def qa_verdict(frame_path: str, expected_text: str, ocr_text: str) -> dict:
-    """Analyze a frame + OCR vs Expectations using a VLM to judge correctness."""
+    """Analyze a frame + OCR vs Expectations using a VLM (or text-only fallback)."""
     config = get_qa_config()
-    b64_img = _encode_image(frame_path)
 
     user_prompt = f"""Task: Determine whether the on-screen text in this video frame matches the expected text.
 
@@ -104,22 +103,31 @@ DETECTED OCR TEXT: "{ocr_text}"
 
 Compare the visual text in the image to the EXPECTED TEXT. Does it match flawlessly or is there a critical error?"""
 
-    messages = [
-        {"role": "system", "content": TEXTGUARD_QA_PROMPT},
-        {
-            "role": "user",
-            "content": [
-                {"type": "text", "text": user_prompt},
-                {
-                    "type": "image_url",
-                    "image_url": {
-                        "url": b64_img,
-                        "detail": "high",
+    is_local = "localhost" in config["base_url"] or "127.0.0.1" in config["base_url"]
+
+    if is_local:
+        messages = [
+            {"role": "system", "content": TEXTGUARD_QA_PROMPT},
+            {"role": "user", "content": user_prompt},
+        ]
+    else:
+        b64_img = _encode_image(frame_path)
+        messages = [
+            {"role": "system", "content": TEXTGUARD_QA_PROMPT},
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": user_prompt},
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": b64_img,
+                            "detail": "high",
+                        },
                     },
-                },
-            ],
-        },
-    ]
+                ],
+            },
+        ]
 
     async def _client_func(msgs):
         return await post_openai_compat(

@@ -1,14 +1,14 @@
-Imagine a smartwatch that knows when you're stressed before you do.
+Product: The "AeroPress Pro Connect"
+Goal: We need a video introducing our new smart coffee maker that connects to an app. 
 
-Meet PulseWave, the AI-powered biometric smartwatch that tracks your heart rate variability, blood oxygen, and cortisol patterns in real time. Our proprietary NeuroSense algorithm detects early signs of burnout and anxiety with 94% accuracy.
+Hey there coffee lovers. You know how hard it is to get that perfect, cafe-quality espresso shot at home. Usually you end up with something bitter, cold, or it takes forever to clean up those huge messy machines. 
 
-Key features:
-- 7-day battery life with always-on display
-- FDA-cleared for clinical-grade HRV monitoring
-- Syncs with Apple Health, Google Fit, and our PulseWave app
-- Water resistant to 100 meters
-- Starts at $299 with a free 3-month Pro subscription
+Introducing the AeroPress Pro Connect. It's the world's first smart, portable espresso maker that syncs directly with your phone. 
 
-Over 50,000 users have reported better sleep and lower stress within 30 days. PulseWave doesn't just track your health — it predicts it.
+With our patented "HyperPressure" pump system, it generates 9 bars of pressure to pull a flawless shot in just 45 seconds. And the best part? The partner App tracks your extraction time, temperature, and remembers your favorite bean profiles for perfect consistency every single time. 
 
-Order now at pulsewave.com and get 20% off with code LAUNCH20.
+It's built with aerospace-grade aluminum, so it's durable enough for camping, but sleek enough for a high-end kitchen counter. No batteries required, it just uses kinetic hand-pumping.
+
+Stop drinking bad coffee. Download the AeroPress connect app today, and pre-order the Pro Connect for $149 before it hits retail next month. 
+
+Mandatory branding guideline: Always call it "AeroPress Pro Connect". Do not use the word "cheap" or "plastic" anywhere. Call the companion app the "partner App".

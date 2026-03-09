@@ -55,8 +55,17 @@ async def run_textguard(
             verdict = None
             if not is_match and expected_text:
                 pct = 30 + int(60 * (i / total_frames))
-                update_status(job_path, "running", pct, f"InternVL2 checking frame {i+1}/{total_frames}...")
-                verdict = await qa_verdict(frame_file, expected_text, detected_text)
+                update_status(job_path, "running", pct, f"VLM checking frame {i+1}/{total_frames}...")
+                try:
+                    verdict = await qa_verdict(frame_file, expected_text, detected_text)
+                except Exception as vlm_err:
+                    print(f"[TextGuard] VLM verdict failed for frame {i+1}: {vlm_err}")
+                    verdict = {
+                        "match": False,
+                        "issue_type": "vlm_error",
+                        "reason": f"VLM analysis unavailable: {str(vlm_err)[:120]}",
+                        "recommended_action": "Manual review recommended",
+                    }
                 if verdict and not verdict.get("match", False):
                     issues_found += 1
                 elif not verdict:

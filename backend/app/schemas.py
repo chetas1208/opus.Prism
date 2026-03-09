@@ -146,7 +146,7 @@ class ChatStatus(BaseModel):
     message: str = ""
 
 class ChatContext(BaseModel):
-    app: str = "PersonaCut+TextGuard"
+    app: str = "Opus.Prism"
     route: str
     project_id: Optional[str] = None
     job_id: Optional[str] = None

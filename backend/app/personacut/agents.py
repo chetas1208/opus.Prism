@@ -211,22 +211,6 @@ async def run_pipeline(job_id: str, job_path: str, source_script: str,
         with open(os.path.join(job_path, "results.json"), "w") as f:
             json.dump(results, f, indent=2)
 
-        # Auto video generation (optional — only if both flags are set)
-        if (project_id
-                and os.getenv("ENABLE_VIDEO_GEN", "false").lower() == "true"
-                and os.getenv("AUTO_VIDEO_GEN", "false").lower() == "true"
-                and variants):
-            try:
-                first_variant = variants[0]
-                vid = first_variant.get("variant_id", "variant_0")
-                update_status(job_path, "running", 96,
-                              f"Auto-generating Wan2.1 video for {vid}...")
-                from ..videogen.orchestrator import generate_video_for_variant
-                generate_video_for_variant(project_id, vid, first_variant, mode="full_variant")
-                update_status(job_path, "running", 99, "Video generated")
-            except Exception as vg_err:
-                print(f"[Pipeline] Auto video-gen failed (non-fatal): {vg_err}")
-
         update_status(job_path, "done", 100, "All variants generated successfully")
 
     except Exception as e:

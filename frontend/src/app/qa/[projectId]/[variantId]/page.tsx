@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, use, useRef } from "react";
-import { runQA, getJobStatus, getQAReport, getOriginalVideoUrl, getPatchedVideoUrl } from "@/lib/api";
+import { runQA, getJobStatus, getQAReport, getOriginalVideoUrl, getPatchedVideoUrl, getQAFrameUrl } from "@/lib/api";
 import {
     Upload, Loader2, ArrowLeft, Download, CheckCircle, XCircle,
     AlertTriangle, Shield, Play, Eye
@@ -200,29 +200,51 @@ export default function QAPage({ params }: { params: Promise<{ projectId: string
                         {/* Frame Results */}
                         <div className="glass-card rounded-xl p-5 space-y-3">
                             <h3 className="text-xs font-mono text-accent-blue uppercase tracking-widest">Frame-by-Frame Results</h3>
-                            <div className="space-y-2 max-h-[500px] overflow-y-auto">
+                            <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
                                 {(report.frames || []).map((fr: any, i: number) => (
-                                    <div key={i} className={`bg-background/40 rounded-lg p-3 border ${fr.is_match ? "border-success/20" : "border-danger/30"} text-xs`}>
-                                        <div className="flex items-center justify-between mb-2">
-                                            <span className="font-mono text-accent-cyan">{fr.timestamp_sec}s</span>
-                                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${fr.is_match ? "bg-success/10 text-success" : "bg-danger/10 text-danger"}`}>
-                                                {fr.is_match ? "PASS" : "FAIL"} · {fr.similarity_score.toFixed(0)}%
-                                            </span>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-2">
-                                            <div><span className="text-muted font-mono">Expected:</span><p className="mt-0.5 text-foreground/80">{fr.expected_text || "—"}</p></div>
-                                            <div><span className="text-muted font-mono">Detected:</span><p className="mt-0.5 font-mono text-foreground/70">{fr.detected_text || "—"}</p></div>
-                                        </div>
-                                        {fr.verdict && (
-                                            <div className="mt-2 bg-card/50 rounded p-2 border border-border/50">
-                                                <div className="flex items-center gap-2 text-[10px]">
-                                                    <span className="text-accent-purple font-semibold">{fr.verdict.issue_type}</span>
-                                                    <span className="text-muted">→</span>
-                                                    <span className="text-accent-cyan">{fr.verdict.recommended_action}</span>
+                                    <div key={i} className={`bg-background/40 rounded-xl p-4 border ${fr.is_match ? "border-success/20" : "border-danger/30"} shadow-sm flex flex-col sm:flex-row gap-4`}>
+                                        {/* Frame Image */}
+                                        {fr.frame_file && (
+                                            <div className="shrink-0 w-full sm:w-48 pt-1">
+                                                <img
+                                                    src={getQAFrameUrl(projectId, variantId, fr.frame_file)}
+                                                    alt={`Frame at ${fr.timestamp_sec}s`}
+                                                    className="w-full h-auto rounded-lg border border-border bg-black object-cover"
+                                                />
+                                                <div className="text-center mt-1 text-[10px] items-center text-muted font-mono flex justify-center gap-1">
+                                                    <span>{fr.timestamp_sec}s</span>
+                                                    <span>•</span>
+                                                    <span className={`font-bold ${fr.is_match ? "text-success" : "text-danger"}`}>
+                                                        {fr.is_match ? "PASS" : "FAIL"} ({fr.similarity_score.toFixed(0)}%)
+                                                    </span>
                                                 </div>
-                                                <p className="text-muted text-[10px] mt-1">{fr.verdict.reason}</p>
                                             </div>
                                         )}
+
+                                        {/* Frame Data */}
+                                        <div className="flex-1 text-xs">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                <div className="bg-card/30 p-3 rounded-lg border border-border/50">
+                                                    <span className="text-muted font-mono uppercase tracking-widest text-[10px]">Expected Text</span>
+                                                    <p className="mt-1 text-foreground/90 font-medium leading-relaxed">{fr.expected_text || "—"}</p>
+                                                </div>
+                                                <div className="bg-card/30 p-3 rounded-lg border border-border/50">
+                                                    <span className="text-muted font-mono uppercase tracking-widest text-[10px]">Detected OCR Text</span>
+                                                    <p className="mt-1 font-mono text-foreground/80 leading-relaxed bg-foreground/5 py-0.5 px-1 rounded break-words">{fr.detected_text || "—"}</p>
+                                                </div>
+                                            </div>
+                                            {fr.verdict && !fr.is_match && (
+                                                <div className="mt-3 bg-danger/5 rounded-lg p-3 border border-danger/20">
+                                                    <div className="flex items-center gap-2 text-xs font-bold">
+                                                        <AlertTriangle className="w-3 h-3 text-danger" />
+                                                        <span className="text-danger">{fr.verdict.issue_type}</span>
+                                                        <span className="text-muted font-normal mx-1">→</span>
+                                                        <span className="text-foreground/90">{fr.verdict.recommended_action}</span>
+                                                    </div>
+                                                    <p className="text-muted/80 text-xs mt-1 leading-relaxed border-l-2 border-danger/30 pl-2 ml-1.5">{fr.verdict.reason}</p>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 ))}
                             </div>
