@@ -1,36 +1,43 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Opus.Prism Frontend
+
+The frontend for Opus.Prism is a sleek, dark-futuristic Next.js web application built with React and Tailwind CSS. It acts as the driver for the entire video personalization and QA workflow.
+
+## Features & Workflow
+
+The UI is divided into three primary core experiences:
+
+1. **PersonaCut (`/personacut`):** 
+   Input your base script/idea and configure your target audiences (Tone, Duration, Platform). Hit generate to trigger the backend 5-agent pipeline.
+2. **Results Dashboard (`/results`):** 
+   View the generated variant packs. Compare the original facts against the tailored script, view the scene-by-scene storyboard planning, and analyze the Critic Agent's Scorecard. Export these prompts to external video generators.
+3. **TextGuard QA (`/qa`):** 
+   Upload an AI-generated MP4 video. The frontend interfaces with TextGuard to highlight OCR differences, display VLM verdicts, and provide a patched video download to fix gibberish text.
+
+### Ambient AI Assistant (OPBot)
+Throughout the application, **OPBot** lives in the corner. OPBot is a context-aware AI assistant powered by Qwen-7B and ElevenLabs TTS (Web Speech API). It understands which page you are on and can guide you through the workflow or answer questions about your scripts.
 
 ## Getting Started
 
-First, run the development server:
+First, ensure you have Node.js installed on your machine.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+1. **Install Dependencies:**
+   ```bash
+   npm install
+   # or yarn / pnpm install
+   ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. **Run the Development Server:**
+   ```bash
+   npm run dev
+   ```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. **Open the App:**
+   Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+*(Note: The frontend expects the FastAPI backend to be running on `http://localhost:8000` for API calls).*
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Tech Stack
+- **Framework:** Next.js (App Router)
+- **Styling:** Tailwind CSS
+- **Icons / Fonts:** Geist, Lucide React
+- **Voice / Speech:** Modern Web Speech APIs

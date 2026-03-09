@@ -1,0 +1,140 @@
+# Opus.Prism - Comprehensive Workflow & Architecture Design
+
+This document outlines the entire workflow of the Opus.Prism codebase, detailing the models used, the problems solved, the task of each module, and provides a precise prompt (with Mermaid code) to generate a Draw.io file.
+
+---
+
+## 1. Problems Identified & Solved
+The codebase (`persona-cut`) actively solves three primary host problems:
+
+1. **Problem 1: Personalization in Generated Video:** 
+   - *Problem:* A single story/script typically results in one generic video output.
+   - *Solution:* **PersonaCut** acts as an AI compiler. It takes one base script and generates multiple variant packs (e.g., a 15s casual TikTok, a 45s technical YouTube short, a 30s professional LinkedIn post) without rerunning the heavy lifting generation steps from scratch.
+2. **Problem 5: Critic in the Loop:**
+   - *Problem:* Pipelines generate and ship without verifying quality, tone, or factual faithfulness.
+   - *Solution:* Placed throughout the system. The **Scorecard** agent pre-evaluates generated variant packs (scoring out of 50). Later, the **TextGuard VLM** evaluates frame-by-frame OCR results to provide actionable verdicts (pass/fail/re-render).
+3. **Problem 3: Accurate Text (No Gibberish):**
+   - *Problem:* AI-generated videos often contain garbled or hallucinated text overlays.
+   - *Solution:* **TextGuard QA** extracts frames using `ffmpeg`, runs an OCR engine against them, and compares the detected text against the expected captions from the Variant Pack. If text is wrong, it uses a VLM to diagnose the issue and generates a "patched" video.
+
+---
+
+## 2. Models & Technologies Used
+The system is highly modular, utilizing specific models for specialized tasks:
+
+- **Large Language Model (Variant Generation & Evaluation):** `Qwen/Qwen2.5-72B-Instruct`
+  - *Usage:* Used by the CrewAI agentic pipeline (Extractor, Strategist, Writer, Planner, Critic) to understand the source script and generate complex JSON variant packs.
+- **Large Language Model (OPBot Chat Assistant):** `Qwen/Qwen2.5-7B-Instruct`
+  - *Usage:* Powers the context-aware chatbot on the frontend, using a smaller, faster model to guide the user.
+- **Vision-Language Model (TextGuard QA Verdicts):** `Qwen/Qwen2.5-VL-7B-Instruct`
+  - *Usage:* Inspects specific video frames where OCR failed, comparing the visual text to expectations and outputting JSON verdicts.
+- **Optical Character Recognition (OCR):** `Qwen2.5-VL`
+  - *Usage:* Frame-by-frame text extraction during the TextGuard QA phase.
+- **Text-to-Speech (TTS):** `ElevenLabs` (Model: `eleven_monolingual_v1`, Voice ID: `21m00Tcm4TlvDq8ikWAM`)
+  - *Usage:* Voice playback for OPBot chatbot responses.
+- **Web Speech API:** Native browser speech-to-text for OPBot voice input.
+
+---
+
+## 3. Tasks of Each Module
+
+### Module A: Frontend (Next.js + Tailwind)
+- **Welcome Page (`/`):** Landing interface introducing the three pillars of Opus.Prism.
+- **Project Creator (`/personacut`):** Accepts the source script/idea, style guide, and target audience configurations (platform, duration, tone).
+- **Results Dashboard (`/results`):** Displays the generated Variant Packs (voiceover script, captions, scene-by-scene prompts, duration, and Critic Scorecard). Allows exporting JSON and copying detailed prompts for external renderers.
+- **TextGuard QA (`/qa`):** File upload interface for rendered `.mp4` videos. Displays side-by-side original vs. patched videos and a frame-by-frame QA report.
+- **OPBot (`ChatWidget.tsx`):** Ambient AI assistant that reads routing context (e.g., knows if you are on the QA page) to provide relevant actions.
+
+### Module B: PersonaCut Backend (FastAPI + CrewAI) 
+- **Agent 1 (Source Script Analyst):** Extracts immutable "Story Facts" (banned terms, required terms, numbers, core message) from the raw input script.
+- **Agent 2 (Audience Strategist):** Maps the story facts to the specific demographic/platform parameters.
+- **Agent 3 (Video Script Writer):** Crafts the actual voiceover and captions.
+- **Agent 4 (Visual Storyboarder):** Translates the script into precise visual generative prompts (Scene start/end times).
+- **Agent 5 (Quality Critic):** Grades the variant JSON out of 50. If the score is below threshold, it triggers a system retry.
+
+### Module C: TextGuard QA Backend
+- **Frame Extractor:** Slices the uploaded `.mp4` into JPEGs based on a target FPS.
+- **OCR Engine:** Scans each frame for visible text (`Qwen2.5-VL`).
+- **Matcher (`compare.py`):** Uses string similarity to compare detected text against the expected captions (inherited from PersonaCut).
+- **VLM Inspector:** If string similarity is low, the frame is sent to `Qwen2.5-VL` to determine if the text is genuinely garbled, styled strangely, or hallucinated.
+- **Patcher:** Redraws correct text boxes over the video to create a fixed `patched.mp4`.
+
+---
+
+## 4. Prompt to Generate the Draw.io File
+
+*Instructions for the User:* You can automatically generate the visual workflow diagram inside Draw.io by using the Mermaid syntax below.
+1. Open [Draw.io / diagram.net](https://app.diagrams.net/)
+2. Click **Arrange** -> **Insert** -> **Advanced** -> **Mermaid...**
+3. Paste the Mermaid code block below and click **Insert**.
+
+```mermaid
+graph TD
+    %% Styling
+    classDef user fill:#6366f1,stroke:#4f46e5,stroke-width:2px,color:#fff,rx:8px,ry:8px;
+    classDef frontend fill:#3b82f6,stroke:#2563eb,stroke-width:2px,color:#fff,rx:8px,ry:8px;
+    classDef agent fill:#8b5cf6,stroke:#7c3aed,stroke-width:2px,color:#fff,rx:8px,ry:8px;
+    classDef qa fill:#06b6d4,stroke:#0891b2,stroke-width:2px,color:#fff,rx:8px,ry:8px;
+    classDef model fill:#10b981,stroke:#059669,stroke-width:2px,color:#fff,rx:8px,ry:8px;
+    classDef bot fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff,rx:8px,ry:8px;
+    
+    %% Users & Input
+    User((User)):::user -->|Inputs Base Script & Audiences| UI_PersonaCut
+    
+    %% Frontend UI
+    subgraph Frontend [Next.js UI & OPBot]
+        UI_PersonaCut[PersonaCut Dashboard]:::frontend
+        UI_Results[Results Dashboard]:::frontend
+        UI_QA[TextGuard QA Interface]:::frontend
+        OPBot[OPBot Assistant]:::bot
+    end
+    
+    OPBot -.->|Context Aware Help| Frontend
+    OPBot -->|Queries| LLM_Chat[Qwen2.5-7B-Instruct]:::model
+    OPBot -->|TTS| ElevenLabs[ElevenLabs API]:::model
+    
+    %% PersonaCut Agentic Pipeline
+    subgraph PersonaCut [PersonaCut Multi-Agent Pipeline]
+        UI_PersonaCut -->|Trigger Generation| Agent1
+        Agent1[Analyst: Extract Story Facts]:::agent --> Agent2
+        Agent2[Strategist: Audience Strategy]:::agent --> Agent3
+        Agent3[Writer: Script & Captions]:::agent --> Agent4
+        Agent4[Planner: Visual Prompts]:::agent --> Agent5[Critic in the Loop: Grade Output]:::agent
+        Agent5 -->|If Score < 35| Agent2
+    end
+    
+    Agent1 -.->|Powered By| LLM_Variant[Qwen2.5-72B-Instruct]:::model
+    Agent2 -.->|Powered By| LLM_Variant
+    Agent3 -.->|Powered By| LLM_Variant
+    Agent4 -.->|Powered By| LLM_Variant
+    Agent5 -.->|Powered By| LLM_Variant
+    
+    Agent5 -->|Outputs JSON Variant Pack| UI_Results
+    
+    %% Handoff to External Render
+    UI_Results -->|Export Prompt/JSON| External[External Video Generator e.g., Runway, Sora, Remotion]:::user
+    External -->|Rendered MP4| UI_QA
+    
+    %% TextGuard QA Pipeline
+    subgraph TextGuard [TextGuard QA Pipeline]
+        UI_QA -->|Extract Frames ffmpeg| FrameExtraction[Frame Extractor]:::qa
+        FrameExtraction --> OCREngine[OCR Engine]:::qa
+        OCREngine -.->|Powered By| OCRModel[Qwen2.5-VL]:::model
+        OCREngine --> Matcher[String Similarity Matcher]:::qa
+        Matcher -->|If Match Fails| VLMInspector[VLM Inspector]:::qa
+        VLMInspector -.->|Powered By| VLM_QA[Qwen2.5-VL-7B-Instruct]:::model
+        VLMInspector --> Patcher[Video Patcher]:::qa
+        Matcher -->|If Match Succeeds| QAReport[Generate QA Report JSON]:::qa
+        Patcher --> QAReport
+    end
+    
+    QAReport -->|Displays Passed/Failed Frames| UI_QA
+```
+
+### Alternatively, if you want a ChatGPT prompt to generate a `.drawio` XML script, you can use the following prompt text inside any LLM capable of outputting raw Drawio XML:
+
+> "Please generate the raw, uncompressed draw.io XML code for a flowchart depicting the 'Opus.Prism' workflow. The diagram should have 4 main horizontal swimlanes: 'User & Frontend (Next.js)', 'PersonaCut AI Pipeline (Qwen 14B)', 'External Rendering', and 'TextGuard QA (OCR + InternVL2)'.
+> 
+> Flow: The user inputs a script -> PersonaCut Agents (Extractor -> Strategist -> Writer -> Planner -> Critic/Scorecard loop) -> Outputs a Variant Pack -> User sends Pack to External Video Generator -> User uploads rendered MP4 to TextGuard QA -> QA Extracts frames -> Runs EasyOCR -> Matches with Expected Captions -> Failed frames go to Qwen VL Inspector -> Patched video and QA Report is returned to User. Mention models used: Qwen2.5-72B, Qwen2.5-VL-7B, Qwen2.5-7B (for OPBot Chat), EasyOCR, ElevenLabs TTS. Output ONLY the `<mxfile>` XML block without any markdown formatting."
+
+---
